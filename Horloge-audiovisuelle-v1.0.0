@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Horloge Studio Radio Plein Écran</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: #000;
+      color: #f00;
+      font-family: 'arial', arial, monospace;
+      overflow: hidden;
+      height: 100%;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    canvas {
+      display: block;
+      background-color: #000;
+    }
+
+    .date {
+      font-size: 5.5vh;
+      margin-top: 1vh;
+      text-shadow: 0 0 10px #f00;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="clockCanvas"></canvas>
+  <div class="date" id="dateDisplay">-- -- ----</div>
+
+  <script>
+    const canvas = document.getElementById("clockCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight * 0.85;
+      ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+    }
+
+    function drawClock() {
+      const now = new Date();
+      const parisTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+      const hours = parisTime.getHours().toString().padStart(2, '0');
+      const minutes = parisTime.getMinutes().toString().padStart(2, '0');
+      const seconds = parisTime.getSeconds();
+
+      const radius = Math.min(canvas.width, canvas.height) / 1.95;
+      ctx.clearRect(-canvas.width / 2, -canvas.height / 2, canvas.width, canvas.height);
+
+      drawDots(seconds, radius);
+      drawDigitalTime(hours, minutes, radius);
+      drawDate(parisTime);
+    }
+
+    function drawDots(activeSecond, radius) {
+      for (let i = 0; i < 60; i++) {
+        const angle = ((i * 6) - 90) * Math.PI / 180; // 60ᵉ seconde en haut
+        const x = Math.cos(angle) * (radius - 30);
+        const y = Math.sin(angle) * (radius - 30);
+
+        ctx.beginPath();
+        ctx.arc(x, y, radius * 0.03, 0, 2 * Math.PI);
+        ctx.fillStyle = i <= activeSecond ? "#f00" : "#300";
+        ctx.shadowColor = i === activeSecond ? "#f00" : "#000";
+        ctx.shadowBlur = i === activeSecond ? 15 : 0;
+        ctx.fill();
+      }
+    }
+
+    function drawDigitalTime(h, m, radius) {
+      const timeStr = `${h}:${m}`;
+      ctx.font = `bold ${radius * 0.5}px 'Courier New', monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#f00";
+      ctx.shadowColor = "#f00";
+      ctx.shadowBlur = 30;
+      ctx.fillText(timeStr, 0, 0);
+    }
+
+    function drawDate(time) {
+      const options = {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'Europe/Paris'
+      };
+      const dateStr = new Intl.DateTimeFormat('fr-FR', options).format(time);
+      document.getElementById("dateDisplay").textContent = dateStr;
+    }
+
+    function startClockSync() {
+      const now = new Date();
+      const delay = 1000 - now.getMilliseconds();
+      setTimeout(() => {
+        drawClock();
+        setInterval(drawClock, 1000);
+      }, delay);
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+    startClockSync();
+  </script>
+</body>
+</html>
