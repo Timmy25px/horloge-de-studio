@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Horloge Studio Radio Plein Écran</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: #000;
+      color: #f00;
+      font-family: 'arial', arial, monospace;
+      overflow: hidden;
+      height: 100%;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    canvas {
+      display: block;
+      background-color: #000;
+    }
+
+    .date {
+      font-size: 5.5vh;
+      margin-top: 1vh;
+      text-shadow: 0 0 10px #f00;
+    }
+
+    .topbar {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      display: flex;
+      gap: 10px;
+      z-index: 9999;
+    }
+
+    select {
+      background: #000;
+      color: #f00;
+      border: 2px solid #f00;
+      padding: 8px;
+      font-size: 14px;
+      font-family: 'arial', arial, monospace;
+      box-shadow: 0 0 10px #f00;
+      outline: none;
+    }
+
+    option {
+      background: #000;
+      color: #f00;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <select id="timezoneSelect"></select>
+
+    <select id="languageSelect">
+      <option value="en-US">🇬🇧 English</option>
+      <option value="fr-FR">🇫🇷 Français</option>
+    </select>
+  </div>
+
+  <canvas id="clockCanvas"></canvas>
+  <div class="date" id="dateDisplay">-- -- ----</div>
+
+  <script>
+    const canvas = document.getElementById("clockCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const timezoneSelect = document.getElementById("timezoneSelect");
+    const languageSelect = document.getElementById("languageSelect");
+
+    let currentOffset = 0;
+    let currentLanguage = "en-US";
+
+    const timezones = [
+      [-12, "UTC-12:00"],
+      [-11, "UTC-11:00"],
+      [-10, "UTC-10:00"],
+      [-9.5, "UTC-09:30"],
+      [-9, "UTC-09:00"],
+      [-8, "UTC-08:00"],
+      [-7, "UTC-07:00"],
+      [-6, "UTC-06:00"],
+      [-5, "UTC-05:00"],
+      [-4, "UTC-04:00"],
+      [-3.5, "UTC-03:30"],
+      [-3, "UTC-03:00"],
+      [-2, "UTC-02:00"],
+      [-1, "UTC-01:00"],
+      [0, "UTC+00:00"],
+      [1, "UTC+01:00"],
+      [2, "UTC+02:00"],
+      [3, "UTC+03:00"],
+      [3.5, "UTC+03:30"],
+      [4, "UTC+04:00"],
+      [4.5, "UTC+04:30"],
+      [5, "UTC+05:00"],
+      [5.5, "UTC+05:30"],
+      [5.75, "UTC+05:45"],
+      [6, "UTC+06:00"],
+      [6.5, "UTC+06:30"],
+      [7, "UTC+07:00"],
+      [8, "UTC+08:00"],
+      [8.75, "UTC+08:45"],
+      [9, "UTC+09:00"],
+      [9.5, "UTC+09:30"],
+      [10, "UTC+10:00"],
+      [10.5, "UTC+10:30"],
+      [11, "UTC+11:00"],
+      [12, "UTC+12:00"],
+      [12.75, "UTC+12:45"],
+      [13, "UTC+13:00"],
+      [14, "UTC+14:00"],
+      [15, "UTC+15:00"]
+    ];
+
+    timezones.forEach(([offset, label]) => {
+      const option = document.createElement("option");
+      option.value = offset;
+      option.textContent = label;
+
+      if (offset === 0) {
+        option.selected = true;
+      }
+
+      timezoneSelect.appendChild(option);
+    });
+
+    timezoneSelect.addEventListener("change", () => {
+      currentOffset = parseFloat(timezoneSelect.value);
+    });
+
+    languageSelect.addEventListener("change", () => {
+      currentLanguage = languageSelect.value;
+      drawClock();
+    });
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight * 0.85;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+    }
+
+    function getUTCDateWithOffset(offset) {
+      const now = new Date();
+
+      const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+
+      return new Date(utc + (offset * 3600000));
+    }
+
+    function drawClock() {
+      const currentTime = getUTCDateWithOffset(currentOffset);
+
+      const hours = currentTime.getHours().toString().padStart(2, '0');
+      const minutes = currentTime.getMinutes().toString().padStart(2, '0');
+      const seconds = currentTime.getSeconds();
+
+      const radius = Math.min(canvas.width, canvas.height) / 1.95;
+
+      ctx.clearRect(
+        -canvas.width / 2,
+        -canvas.height / 2,
+        canvas.width,
+        canvas.height
+      );
+
+      drawDots(seconds, radius);
+      drawDigitalTime(hours, minutes, radius);
+      drawDate(currentTime);
+    }
+
+    function drawDots(activeSecond, radius) {
+      for (let i = 0; i < 60; i++) {
+        const angle = ((i * 6) - 90) * Math.PI / 180;
+
+        const x = Math.cos(angle) * (radius - 30);
+        const y = Math.sin(angle) * (radius - 30);
+
+        ctx.beginPath();
+        ctx.arc(x, y, radius * 0.03, 0, 2 * Math.PI);
+
+        ctx.fillStyle = i <= activeSecond ? "#f00" : "#300";
+
+        ctx.shadowColor = i === activeSecond ? "#f00" : "#000";
+        ctx.shadowBlur = i === activeSecond ? 15 : 0;
+
+        ctx.fill();
+      }
+    }
+
+    function drawDigitalTime(h, m, radius) {
+      const timeStr = `${h}:${m}`;
+
+      ctx.font = `bold ${radius * 0.5}px 'Courier New', monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      ctx.fillStyle = "#f00";
+      ctx.shadowColor = "#f00";
+      ctx.shadowBlur = 30;
+
+      ctx.fillText(timeStr, 0, 0);
+    }
+
+    function drawDate(time) {
+      const options = {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      };
+
+      const dateStr = new Intl.DateTimeFormat(
+        currentLanguage,
+        options
+      ).format(time);
+
+      document.getElementById("dateDisplay").textContent = dateStr;
+    }
+
+    function startClockSync() {
+      const now = new Date();
+
+      const delay = 1000 - now.getMilliseconds();
+
+      setTimeout(() => {
+        drawClock();
+
+        setInterval(drawClock, 1000);
+      }, delay);
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+
+    resizeCanvas();
+    startClockSync();
+  </script>
+</body>
+</html>
